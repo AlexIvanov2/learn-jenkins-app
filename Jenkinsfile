@@ -14,7 +14,6 @@ pipeline {
           set -eux
           node --version
           npm --version
-
           npm ci
           npm run build
         '''
@@ -40,7 +39,8 @@ pipeline {
     stage('E2E') {
       agent {
         docker {
-          image 'mcr.microsoft.com/playwright:v1.57.0-noble'
+          // Match Docker image to your repo's Playwright version
+          image 'mcr.microsoft.com/playwright:v1.39.0-noble'
           reuseNode true
           args '--ipc=host'
         }
@@ -49,18 +49,16 @@ pipeline {
         sh '''
           set -eux
 
-          # Clean Alpine-built dependencies
+          # Avoid reusing Alpine node_modules in Ubuntu-based image
           rm -rf node_modules
           npm ci
 
-          # Start app
           npx --yes serve -s build -l 4173 &
           SERVER_PID=$!
           trap "kill $SERVER_PID || true" EXIT
 
           sleep 2
 
-          # Run Playwright tests
           npx playwright test --reporter=html
         '''
       }

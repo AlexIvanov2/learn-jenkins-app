@@ -17,9 +17,6 @@ pipeline {
 
           npm ci
           npm run build
-
-          ls -la
-          ls -la build | head -n 50
         '''
       }
     }
@@ -52,28 +49,23 @@ pipeline {
         sh '''
           set -eux
 
-          # Avoid reusing Alpine-built node_modules in Ubuntu-based Playwright image
+          # Clean Alpine-built dependencies
           rm -rf node_modules
           npm ci
 
-          # Start static server and ensure it is stopped at the end
+          # Start app
           npx --yes serve -s build -l 4173 &
           SERVER_PID=$!
           trap "kill $SERVER_PID || true" EXIT
 
           sleep 2
 
-          # Sanity checks
-          npx playwright --version
-          npx playwright install --check
-
-          # Run E2E
+          # Run Playwright tests
           npx playwright test --reporter=html
         '''
       }
       post {
         always {
-          // Archive Playwright HTML report (path can be playwright-report or test-results depending on config)
           archiveArtifacts artifacts: 'playwright-report/**', allowEmptyArchive: true
         }
       }

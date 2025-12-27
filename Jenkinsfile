@@ -11,11 +11,14 @@ pipeline {
       }
       steps {
         sh '''
-          set -euxo pipefail
+          set -eux
           node --version
           npm --version
+
           npm ci
           npm run build
+
+          ls -la
           ls -la build | head -n 50
         '''
       }
@@ -30,7 +33,7 @@ pipeline {
       }
       steps {
         sh '''
-          set -euxo pipefail
+          set -eux
           test -f build/index.html
           npm test
         '''
@@ -47,22 +50,32 @@ pipeline {
       }
       steps {
         sh '''
-          set -euxo pipefail
+          set -eux
 
-          # IMPORTANT: install deps in this image (Ubuntu), not reuse Alpine node_modules
+          # Avoid reusing Alpine-built node_modules in Ubuntu-based Playwright image
           rm -rf node_modules
           npm ci
 
-          # Start static server and ensure it gets killed
+          # Start static server and ensure it is stopped at the end
           npx --yes serve -s build -l 4173 &
           SERVER_PID=$!
           trap "kill $SERVER_PID || true" EXIT
 
           sleep 2
+
+          # Sanity checks
           npx playwright --version
           npx playwright install --check
+
+          # Run E2E
           npx playwright test --reporter=html
         '''
+      }
+      post {
+        always {
+          // Archive Playwright HTML report (path can be playwright-report or test-results depending on config)
+          archiveArtifacts artifacts: 'playwright-report/**', allowEmptyArchive: true
+        }
       }
     }
   }
@@ -70,8 +83,6 @@ pipeline {
   post {
     always {
       junit 'jest-results/junit.xml'
-      // Optional: archive the Playwright HTML report if you want
-      // archiveArtifacts artifacts: 'playwright-report/**', allowEmptyArchive: true
     }
   }
 }

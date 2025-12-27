@@ -16,6 +16,7 @@ pipeline {
                    npm --version
                    npm ci
                    npm run build
+                   npx playwright install --with-deps
                    ls -la 
                   '''
             }

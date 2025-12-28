@@ -49,20 +49,20 @@ pipeline {
         sh '''
           set -eux
 
-          # Don't reuse Alpine node_modules in Ubuntu-based image
+          # Clean deps for Ubuntu-based image
           rm -rf node_modules
           npm ci
 
-          # Start app
-          npx --yes serve -s build -l 4173 &
+          # Start app on port Playwright expects
+          npx --yes serve -s build -l 3000 &
           SERVER_PID=$!
           trap "kill $SERVER_PID || true" EXIT
 
-          # Wait for server
-          npx --yes wait-on http://127.0.0.1:4173
+          # Wait until server is ready (Node 18 compatible)
+          npx --yes wait-on@6.0.1 http://127.0.0.1:3000
 
-          # Run E2E (point Playwright to the right port)
-          PLAYWRIGHT_BASE_URL=http://127.0.0.1:4173 npx playwright test --reporter=html
+          # Run E2E tests
+          npx playwright test --reporter=html
         '''
       }
       post {

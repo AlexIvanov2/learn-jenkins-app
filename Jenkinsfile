@@ -96,7 +96,7 @@ pipeline {
                     echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
 
                     # `netlify status` doesn't support --site in this CLI version, so skip it.
-                    npx netlify-cli deploy --prod --dir=build --site "$NETLIFY_SITE_ID"
+                    npx netlify-cli deploy --prod --dir=build --site "$NETLIFY_SITE_ID" --no-build
                 '''
             }
         }

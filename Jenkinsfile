@@ -77,8 +77,31 @@ pipeline {
                 }
             }
         }
+        stage('Deploy Staging') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
+            }
+            steps {
+                sh '''
+                    set -eux
+                    test -d build
 
-        stage('Deploy') {
+                    npm ci
+                    npx netlify-cli --version
+
+                    echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
+
+                    # `netlify status` doesn't support --site in this CLI version, so skip it.
+                    npx netlify-cli deploy --dir=build --site "$NETLIFY_SITE_ID" --no-build
+                    echo "Deployment completed."
+                '''
+            }
+ 
+
+        stage('Deploy Production') {
             agent {
                 docker {
                     image 'node:18-alpine'

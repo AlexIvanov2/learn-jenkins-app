@@ -65,12 +65,12 @@ pipeline {
         sh '''
           set -eux
           test -d build
-
           npm ci
+          apk add --no-cache jq
           npx netlify-cli --version
-
           echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
-          npx netlify-cli deploy --dir=build --site "$NETLIFY_SITE_ID" --no-build
+          npx netlify-cli deploy --dir=build --site "$NETLIFY_SITE_ID" --no-build --json > deploy-output.json
+          node_modules/.bin/jq -r '.url' deploy-output.json
           echo "Staging deployment completed."
         '''
       }

@@ -76,6 +76,15 @@ pipeline {
       }
     }
 
+    stage('Approve Production') {
+      steps {
+        timeout(time: 60, unit: 'MINUTES') {
+          input message: 'Staging deployed. Approve deployment to PRODUCTION?',
+                ok: 'Deploy to Production'
+        }
+      }
+    }
+
     stage('Deploy Production') {
       agent { docker { image 'node:18-alpine'; reuseNode true } }
       steps {

@@ -65,14 +65,43 @@ pipeline {
         sh '''
           set -eux
           test -d build
-          npm ci
           apk add --no-cache jq
+          npm ci
           npx netlify-cli --version
+
           echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
-          npx netlify-cli deploy --dir=build --site "$NETLIFY_SITE_ID" --no-build --json > deploy-output.json
-          node_modules/.bin/jq -r '.url' deploy-output.json
+
+          # Save full deploy output to JSON and show it in logs
+          npx netlify-cli deploy --dir=build --site "$NETLIFY_SITE_ID" --no-build --json | tee deploy-output.json
+
+          # Extract and print the deploy URL (field can vary, so we fallback)
+          jq -r '.deploy_url // .url // empty' deploy-output.json
           echo "Staging deployment completed."
         '''
+      }
+    }
+
+    stage('Stage E2E') {
+      agent { docker { image 'mcr.microsoft.com/playwright:v1.39.0-jammy'; reuseNode true } }
+      steps {
+        sh '''
+          set -eux
+          npm ci
+
+          # Read the staging deploy URL produced by previous stage
+          STAGING_URL="$(jq -r '.deploy_url // .url // empty' deploy-output.json)"
+          echo "Running staging E2E against: $STAGING_URL"
+          test -n "$STAGING_URL"
+
+          CI_ENVIRONMENT_URL="$STAGING_URL" npx playwright test --reporter=html
+        '''
+      }
+      post {
+        always {
+          publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false,
+            reportDir: 'playwright-report', reportFiles: 'index.html',
+            reportName: 'Playwright Stage E2E Report', reportTitles: '', useWrapperFileDirectly: true])
+        }
       }
     }
 
@@ -91,7 +120,6 @@ pipeline {
         sh '''
           set -eux
           test -d build
-
           npm ci
           npx netlify-cli --version
 
@@ -118,7 +146,7 @@ pipeline {
         always {
           publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false,
             reportDir: 'playwright-report', reportFiles: 'index.html',
-            reportName: 'Playwright E2E Report', reportTitles: '', useWrapperFileDirectly: true])
+            reportName: 'Playwright Prod E2E Report', reportTitles: '', useWrapperFileDirectly: true])
         }
       }
     }

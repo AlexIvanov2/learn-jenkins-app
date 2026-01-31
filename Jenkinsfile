@@ -4,7 +4,7 @@ pipeline {
   environment {
     NETLIFY_SITE_ID    = '82900fd4-6a59-4989-9a8a-85a4c975c113'
     NETLIFY_AUTH_TOKEN = credentials('netlify-token')
-    REACT_APP_VERSION = "1.0.${BUILD_ID}"
+    REACT_APP_VERSION  = "1.0.${BUILD_ID}"
   }
 
   stages {
@@ -72,7 +72,9 @@ pipeline {
           set -eux
           test -d build
 
-          apk add --no-cache jq
+          # Ubuntu image -> use apt-get (not apk)
+          apt-get update && apt-get install -y jq
+
           npm ci
           npx netlify-cli --version
 
@@ -117,7 +119,9 @@ pipeline {
           set -eux
           test -d build
 
-          apk add --no-cache jq
+          # Ubuntu image -> use apt-get (not apk)
+          apt-get update && apt-get install -y jq
+
           npm ci
           npx netlify-cli --version
 

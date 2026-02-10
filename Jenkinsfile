@@ -9,6 +9,14 @@ pipeline {
 
   stages {
 
+    stage('Docker'){
+      steps {
+        sh '''
+          docker build -t alex-docker .
+        '''
+      }
+    }
+
     stage('Build') {
       agent { docker { image 'node:18-alpine'; reuseNode true } }
       steps {

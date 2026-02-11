@@ -9,9 +9,10 @@ pipeline {
 
   stages {
 
-    stage('Docker'){
+    stage('Docker') {
       steps {
         sh '''
+          set -eux
           docker build -t alex-docker .
         '''
       }
@@ -24,20 +25,27 @@ pipeline {
           set -eux
           node --version
           npm --version
+
+          # Install deps ONCE
           npm ci
+
+          # Build ONCE
           npm run build
+
+          test -d build
         '''
       }
     }
 
     stage('Tests') {
       parallel {
+
         stage('Unit tests') {
           agent { docker { image 'node:18-alpine'; reuseNode true } }
           steps {
             sh '''
               set -eux
-              npm ci
+              # reuse node_modules from Build (no npm ci here)
               npm test
             '''
           }
@@ -45,14 +53,16 @@ pipeline {
         }
 
         stage('Local E2E') {
-          agent { docker { image 'mcr.microsoft.com/playwright:v1.39.0-jammy'; reuseNode true } }
+          agent { docker { image 'alex-docker'; reuseNode true } }
           steps {
             sh '''
               set -eux
-              npm ci
-              npm install --no-save serve
-              node_modules/.bin/serve -s build &
+              test -d build
+
+              # no npm ci here - reuse node_modules from Build
+              npx --yes serve -s build &
               sleep 10
+
               npx playwright test --reporter=html
             '''
           }
@@ -74,20 +84,20 @@ pipeline {
     }
 
     stage('Deploy + Staging E2E') {
-      agent { docker { image 'mcr.microsoft.com/playwright:v1.39.0-jammy'; reuseNode true } }
+      agent { docker { image 'alex-docker'; reuseNode true } }
       steps {
         sh '''
           set -eux
           test -d build
 
-          # Ubuntu image -> use apt-get (not apk)
-          apt-get update && apt-get install -y jq
-
-          npm ci
-          npx netlify-cli --version
+          node --version
+          netlify --version
+          jq --version
 
           echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
-          npx netlify-cli deploy --dir=build --site "$NETLIFY_SITE_ID" --no-build --json | tee deploy-output.json
+          netlify status || true
+
+          netlify deploy --dir=build --site "$NETLIFY_SITE_ID" --no-build --json | tee deploy-output.json
 
           STAGING_URL="$(jq -r '.deploy_url // .url // empty' deploy-output.json)"
           echo "Staging URL: $STAGING_URL"
@@ -121,20 +131,20 @@ pipeline {
     }
 
     stage('Deploy + Prod E2E') {
-      agent { docker { image 'mcr.microsoft.com/playwright:v1.39.0-jammy'; reuseNode true } }
+      agent { docker { image 'alex-docker'; reuseNode true } }
       steps {
         sh '''
           set -eux
           test -d build
 
-          # Ubuntu image -> use apt-get (not apk)
-          apt-get update && apt-get install -y jq
-
-          npm ci
-          npx netlify-cli --version
+          node --version
+          netlify --version
+          jq --version
 
           echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
-          npx netlify-cli deploy --prod --dir=build --site "$NETLIFY_SITE_ID" --no-build --json | tee deploy-output.json
+          netlify status || true
+
+          netlify deploy --prod --dir=build --site "$NETLIFY_SITE_ID" --no-build --json | tee deploy-output.json
 
           PROD_URL="$(jq -r '.deploy_url // .url // empty' deploy-output.json)"
           echo "Production URL: $PROD_URL"

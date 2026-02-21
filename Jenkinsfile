@@ -144,7 +144,7 @@ pipeline {
           echo "Deploying to production. Site ID: $NETLIFY_SITE_ID"
           netlify status || true
 
-          netlify deploy --prod --dir=build --site "$NETLIFY_SITE_ID" --no-build --json | tee deploy-output.json
+          netlify deploy --prod --dir=build --site "$NETLIFY_SITE_ID" --json | tee deploy-output.json
 
           PROD_URL="$(jq -r '.deploy_url // .url // empty' deploy-output.json)"
           echo "Production URL: $PROD_URL"

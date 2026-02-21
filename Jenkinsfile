@@ -97,7 +97,7 @@ pipeline {
           echo "Deploying to staging. Site ID: $NETLIFY_SITE_ID"
           netlify status || true
 
-          netlify deploy --dir=build --site "$NETLIFY_SITE_ID" --no-build --json | tee deploy-output.json
+          netlify deploy --dir=build --site $NETLIFY_SITE_ID --json | tee deploy-output.json
 
           STAGING_URL="$(jq -r '.deploy_url // .url // empty' deploy-output.json)"
           echo "Staging URL: $STAGING_URL"
